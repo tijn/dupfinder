@@ -1,0 +1,141 @@
+#!/usr/bin/env ruby
+
+require 'digest/md5'
+require 'fileutils'
+require 'optparse'
+
+def glob_from_argument(arg)
+  if File.directory?(arg)
+    arg + "/**/*"
+  elsif File.file?(arg)
+    arg
+  else # it's already a glob
+    arg
+  end
+end
+
+ALLOWED_PRINT_OPTIONS = %w(hay needle separator)
+
+def parse_options(args)
+  options = {}
+  options[:print] = %w(hay needle)
+
+  opt_parser = OptionParser.new do |opts|
+    opts.banner = "Usage: #{$0} [options] HAYSTACK NEEDLES"
+    opts.separator ""
+    opts.separator "Search for duplicate files (needles) in a directory (the haystack)."
+    opts.separator ""
+    opts.separator "HAYSTACK should be the directory (or one file) that you want to search in."
+    opts.separator ""
+    opts.separator "NEEDLES are the files you want to search for. " +
+      'A NEEDLE can be a file or a directory, in which case it will be recursively scanned. ' +
+      'Note that NEEDLES may overlap the HAYSTACK'
+    opts.separator ""
+
+    opts.on("-p", "--print PROPERTIES", Array,
+      "When a match is found print needle, or hay, or both",
+      "an optional empty line can be printed between matches with 'separator'",
+      "PROPERTIES should be a comma-separated list of the",
+      "(optional) words 'needle', 'hay', 'separator'",
+      "Default: 'needle,hay'") do |list|
+      options[:print] = list
+    end
+
+    opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+      options[:verbose] = v
+    end
+  end
+  opt_parser.parse!(args)
+
+  options[:haystack] = ARGV.shift
+  options[:needles] = ARGV.shift(ARGV.size)
+
+  raise ArgumentError, "Missing HAYSTACK to search in" if options[:haystack].nil?
+  raise ArgumentError, "Missing NEEDLES to search for" if options[:needles].empty?
+  raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator'" unless options[:print].all? { |option| ALLOWED_PRINT_OPTIONS.include? option }
+
+  options
+rescue OptionParser::InvalidOption, ArgumentError => error
+  puts opt_parser.help
+  puts nil, error
+  exit
+end
+
+options = parse_options(ARGV)
+
+VERBOSE = options[:verbose]
+PRINT_HAY = options[:print].include? 'hay'
+PRINT_NEEDLE = options[:print].include? 'needle'
+PRINT_SEPARATOR = options[:print].include? 'separator'
+
+HAYSTACK_GLOB = glob_from_argument options[:haystack]
+NEEDLES_GLOB = options[:needles].map { |arg| glob_from_argument(arg) }
+
+
+def info(*strings)
+  return unless VERBOSE
+  STDERR.puts strings
+end
+
+def info_with_ellips(string)
+  return unless VERBOSE
+  STDERR.print string + "... "
+end
+
+def all_files(*globs)
+  globs
+    .map { |glob| Dir.glob(glob) }
+    .flatten
+    .map { |filename| File.expand_path(filename) }.uniq.sort
+    .select { |filename| File.file?(filename) }
+end
+
+def index_haystack(glob)
+  all_files(glob).group_by { |filename| File.size(filename) }
+end
+
+@checksums = {}
+def checksum(filename)
+  @checksums[filename] ||= calculate_checksum(filename)
+end
+
+def calculate_checksum(filename)
+   Digest::MD5.hexdigest(File.read(filename))
+end
+
+def find_needle(needle, haystack)
+  straws = haystack[File.size(needle)] or return nil
+
+  checksum_needle = calculate_checksum(needle)
+  straws.detect do |straw|
+    straw != needle && checksum(straw) == checksum_needle && FileUtils.identical?(needle, straw)
+  end
+end
+
+BOLD = "\033[1m"
+NORMAL = "\033[22m"
+
+def print_found(needle, found)
+  if PRINT_NEEDLE
+    print BOLD if $stdout.tty?
+    puts needle
+    print NORMAL if $stdout.tty?
+  end
+  puts found if PRINT_HAY
+  puts if PRINT_SEPARATOR
+end
+
+info "Searching #{HAYSTACK_GLOB.inspect} for files equal to #{NEEDLES_GLOB.inspect}."
+
+info_with_ellips "Indexing haystack by file size"
+haystack = index_haystack(HAYSTACK_GLOB)
+haystack[0] = nil # ignore empty files
+info "#{haystack.size} files"
+
+info "Comparing..."
+all_files(*NEEDLES_GLOB).each do |needle|
+  info "  examining #{needle}"
+  if found = find_needle(needle, haystack)
+    print_found(needle, found)
+  end
+end
