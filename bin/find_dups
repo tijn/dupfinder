@@ -86,7 +86,7 @@ def all_files(*globs)
   globs
     .map { |glob| Dir.glob(glob) }
     .flatten
-    .map { |filename| File.expand_path(filename) }.uniq.sort
+    .map { |filename| File.expand_path(filename) }.uniq.sort # normalize filenames
     .select { |filename| File.file?(filename) }
 end
 
