@@ -34,9 +34,9 @@ def parse_options(args)
 
     opts.on("-p", "--print PROPERTIES", Array,
       "When a match is found print needle, or hay, or both",
-      "an optional empty line can be printed between matches with 'separator'",
-      "PROPERTIES should be a comma-separated list of the",
-      "(optional) words 'needle', 'hay', 'separator'",
+      "PROPERTIES should be a comma-separated list with one",
+      "or more of the words 'needle', 'hay', and 'separator'",
+      "'separator' prints an empty line",
       "Default: 'needle,hay'") do |list|
       options[:print] = list
     end
