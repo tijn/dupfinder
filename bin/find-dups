@@ -14,6 +14,29 @@ def glob_from_argument(arg)
   end
 end
 
+# Wrap text at 80 chars. (configurable)
+def wrap_text(*args)
+  width = if args.last.is_a? Integer then args.pop else 80 end
+  words = args.flatten.join(' ').split(' ')
+  if words.any? { |word| word.size > width }
+    raise NotImplementedError, "cannot deal with long words"
+  end
+
+  lines = []
+  line = []
+  while !words.empty?
+    word = words.first
+    if line.size + line.map(&:size).inject(0, :+) + word.size > width
+      lines << line.join(" ")
+      line = []
+    else
+      line << words.shift
+    end
+  end
+  lines << line.join(" ") unless line.empty?
+  lines.join("\n")
+end
+
 ALLOWED_PRINT_OPTIONS = %w(hay needle separator)
 
 def parse_options(args)
@@ -27,16 +50,19 @@ def parse_options(args)
     opts.separator ""
     opts.separator "HAYSTACK should be the directory (or one file) that you want to search in."
     opts.separator ""
-    opts.separator "NEEDLES are the files you want to search for. " +
-      'A NEEDLE can be a file or a directory, in which case it will be recursively scanned. ' +
-      'Note that NEEDLES may overlap the HAYSTACK'
+    opts.separator wrap_text(
+      "NEEDLES are the files you want to search for.",
+      'A NEEDLE can be a file or a directory,',
+      'in which case it will be recursively scanned.',
+      'Note that NEEDLES may overlap the HAYSTACK.')
     opts.separator ""
 
     opts.on("-p", "--print PROPERTIES", Array,
-      "When a match is found print needle, or hay, or both",
-      "PROPERTIES should be a comma-separated list with one",
-      "or more of the words 'needle', 'hay', and 'separator'",
-      "'separator' prints an empty line",
+      "When a match is found, print needle, or",
+      "hay, or both. PROPERTIES is a comma-",
+      "separated list with one or more of the",
+      "words 'needle', 'hay', or 'separator'.",
+      "'separator' prints an empty line.",
       "Default: 'needle,hay'") do |list|
       options[:print] = list
     end
@@ -44,21 +70,25 @@ def parse_options(args)
     opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
       options[:verbose] = v
     end
+
+    opts.on_tail("-h", "--help", "Show this message") do
+      puts opts
+      exit
+    end
   end
   opt_parser.parse!(args)
 
   options[:haystack] = ARGV.shift
   options[:needles] = ARGV.shift(ARGV.size)
 
-  raise ArgumentError, "Missing HAYSTACK to search in" if options[:haystack].nil?
-  raise ArgumentError, "Missing NEEDLES to search for" if options[:needles].empty?
+  raise ArgumentError, "Missing HAYSTACK" if options[:haystack].nil?
+  raise ArgumentError, "Missing NEEDLES" if options[:needles].empty?
   raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator'" unless options[:print].all? { |option| ALLOWED_PRINT_OPTIONS.include? option }
 
   options
 rescue OptionParser::InvalidOption, ArgumentError => error
-  puts opt_parser.help
-  puts nil, error
-  exit
+  puts error, nil, opt_parser.banner
+  exit 1
 end
 
 options = parse_options(ARGV)
