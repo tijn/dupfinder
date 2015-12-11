@@ -83,7 +83,9 @@ def parse_options(args)
 
   raise ArgumentError, "Missing HAYSTACK" if options[:haystack].nil?
   raise ArgumentError, "Missing NEEDLES" if options[:needles].empty?
-  raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator'" unless options[:print].all? { |option| ALLOWED_PRINT_OPTIONS.include? option }
+  unless options[:print].all? { |option| ALLOWED_PRINT_OPTIONS.include? option }
+    raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator'"
+  end
 
   options
 rescue OptionParser::InvalidOption, ArgumentError => error
