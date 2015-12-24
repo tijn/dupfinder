@@ -6,7 +6,7 @@ require 'optparse'
 
 def glob_from_argument(arg)
   if File.directory?(arg)
-    arg + "/**/*"
+    arg + '/**/*'
   elsif File.file?(arg)
     arg
   else # it's already a glob
@@ -16,24 +16,24 @@ end
 
 # Wrap text at 80 chars. (configurable)
 def wrap_text(*args)
-  width = if args.last.is_a? Integer then args.pop else 80 end
+  width = args.last.is_a?(Integer) ? args.pop : 80
   words = args.flatten.join(' ').split(' ')
   if words.any? { |word| word.size > width }
-    raise NotImplementedError, "cannot deal with long words"
+    raise NotImplementedError, 'cannot deal with long words'
   end
 
   lines = []
   line = []
-  while !words.empty?
+  until words.empty?
     word = words.first
     if line.size + line.map(&:size).inject(0, :+) + word.size > width
-      lines << line.join(" ")
+      lines << line.join(' ')
       line = []
     else
       line << words.shift
     end
   end
-  lines << line.join(" ") unless line.empty?
+  lines << line.join(' ') unless line.empty?
   lines.join("\n")
 end
 
@@ -45,17 +45,17 @@ def parse_options(args)
 
   opt_parser = OptionParser.new do |opts|
     opts.banner = "Usage: #{$0} [options] HAYSTACK NEEDLES"
-    opts.separator ""
-    opts.separator "Search for duplicate files (needles) in a directory (the haystack)."
-    opts.separator ""
-    opts.separator "HAYSTACK should be the directory (or one file) that you want to search in."
-    opts.separator ""
+    opts.separator ''
+    opts.separator 'Search for duplicate files (needles) in a directory (the haystack).'
+    opts.separator ''
+    opts.separator 'HAYSTACK should be the directory (or one file) that you want to search in.'
+    opts.separator ''
     opts.separator wrap_text(
-      "NEEDLES are the files you want to search for.",
+      'NEEDLES are the files you want to search for.',
       'A NEEDLE can be a file or a directory,',
       'in which case it will be recursively scanned.',
       'Note that NEEDLES may overlap the HAYSTACK.')
-    opts.separator ""
+    opts.separator ''
 
     opts.on("-p", "--print PROPERTIES", Array,
       "When a match is found, print needle, or",
@@ -103,7 +103,6 @@ PRINT_SEPARATOR = options[:print].include? 'separator'
 HAYSTACK_GLOB = glob_from_argument options[:haystack]
 NEEDLES_GLOB = options[:needles].map { |arg| glob_from_argument(arg) }
 
-
 def info(*strings)
   return unless VERBOSE
   STDERR.puts strings
@@ -111,14 +110,16 @@ end
 
 def info_with_ellips(string)
   return unless VERBOSE
-  STDERR.print string + "... "
+  STDERR.print string + '... '
 end
 
 def all_files(*globs)
   globs
     .map { |glob| Dir.glob(glob) }
     .flatten
-    .map { |filename| File.expand_path(filename) }.uniq.sort # normalize filenames
+    .map { |filename| File.expand_path(filename) } # normalize filenames
+    .uniq
+    .sort
     .select { |filename| File.file?(filename) }
 end
 
@@ -132,15 +133,17 @@ def checksum(filename)
 end
 
 def calculate_checksum(filename)
-   Digest::MD5.hexdigest(File.read(filename))
+  Digest::MD5.hexdigest(File.read(filename))
 end
 
 def find_needle(needle, haystack)
-  straws = haystack[File.size(needle)] or return nil
+  straws = haystack[File.size(needle)] || return
 
   checksum_needle = calculate_checksum(needle)
   straws.detect do |straw|
-    straw != needle && checksum(straw) == checksum_needle && FileUtils.identical?(needle, straw)
+    straw != needle &&
+      checksum(straw) == checksum_needle &&
+      FileUtils.identical?(needle, straw)
   end
 end
 
@@ -157,17 +160,16 @@ def print_found(needle, found)
   puts if PRINT_SEPARATOR
 end
 
-info "Searching #{HAYSTACK_GLOB.inspect} for files equal to #{NEEDLES_GLOB.inspect}."
+info "Searching #{HAYSTACK_GLOB} for files equal to #{NEEDLES_GLOB}."
 
-info_with_ellips "Indexing haystack by file size"
+info_with_ellips 'Indexing haystack by file size'
 haystack = index_haystack(HAYSTACK_GLOB)
 haystack[0] = nil # ignore empty files
 info "#{haystack.size} files"
 
-info "Comparing..."
+info 'Comparing...'
 all_files(*NEEDLES_GLOB).each do |needle|
   info "  examining #{needle}"
-  if found = find_needle(needle, haystack)
-    print_found(needle, found)
-  end
+  found = find_needle(needle, haystack)
+  print_found(needle, found) unless found.nil?
 end
