@@ -68,6 +68,10 @@ def parse_options(args)
       options[:print] = list
     end
 
+    opts.on("-r", "--reverse", "Also search for haystack in the needles") do |v|
+      options[:reverse] = true
+    end
+
     opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
       options[:verbose] = v
     end
@@ -97,6 +101,7 @@ end
 options = parse_options(ARGV)
 
 VERBOSE = options[:verbose]
+REVERSE = options[:reverse]
 PRINT_HAY = options[:print].include? 'hay'
 PRINT_UNMATCHEDNEEDLE = options[:print].include? 'umatchedneedle'
 PRINT_NEEDLE = options[:print].include? 'needle'
@@ -165,16 +170,25 @@ def print_needle(needle, found)
   puts if PRINT_SEPARATOR
 end
 
-info "Searching #{HAYSTACK_GLOB} for files equal to #{NEEDLES_GLOB}."
+def search(haystack, needles)
+  info "Searching #{haystack} for files equal to #{needles}."
 
-info_with_ellips 'Indexing haystack by file size'
-haystack = index_haystack(HAYSTACK_GLOB)
-haystack[0] = nil # ignore empty files
-info "#{haystack.size} files"
+  info_with_ellips 'Indexing haystack by file size'
+  indexed_haystack = index_haystack(haystack)
+  indexed_haystack[0] = nil # ignore empty files
+  info "#{indexed_haystack.size} files"
 
-info 'Comparing...'
-all_files(*NEEDLES_GLOB).each do |needle|
-  info "  examining #{needle}"
-  found = find_needle(needle, haystack)
-  print_needle(needle, found)
+  info 'Comparing...'
+  all_files(*needles).each do |needle|
+    info "  examining #{needle}"
+    found = find_needle(needle, indexed_haystack)
+    print_needle(needle, found)
+  end
+end
+
+search(HAYSTACK_GLOB, NEEDLES_GLOB)
+
+if REVERSE
+  info 'Comparing reverse...'
+  search(NEEDLES_GLOB, HAYSTACK_GLOB)
 end
