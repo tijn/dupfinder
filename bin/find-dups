@@ -37,7 +37,7 @@ def wrap_text(*args)
   lines.join("\n")
 end
 
-ALLOWED_PRINT_OPTIONS = %w(hay needle separator)
+ALLOWED_PRINT_OPTIONS = %w(hay needle separator umatchedneedle)
 
 def parse_options(args)
   options = {}
@@ -61,8 +61,9 @@ def parse_options(args)
       "When a match is found, print needle, or",
       "hay, or both. PROPERTIES is a comma-",
       "separated list with one or more of the",
-      "words 'needle', 'hay', or 'separator'.",
-      "'separator' prints an empty line.",
+      "words 'needle', 'hay', 'umatchedneedle'.",
+      "Additionally 'separator' can be used to",
+      "print an empty line.",
       "Default: 'needle,hay'") do |list|
       options[:print] = list
     end
@@ -84,7 +85,7 @@ def parse_options(args)
   raise ArgumentError, "Missing HAYSTACK" if options[:haystack].nil?
   raise ArgumentError, "Missing NEEDLES" if options[:needles].empty?
   unless options[:print].all? { |option| ALLOWED_PRINT_OPTIONS.include? option }
-    raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator'"
+    raise ArgumentError, "Allowed print options are  'needle', 'hay', 'separator', 'umatchedneedle"
   end
 
   options
@@ -97,6 +98,7 @@ options = parse_options(ARGV)
 
 VERBOSE = options[:verbose]
 PRINT_HAY = options[:print].include? 'hay'
+PRINT_UNMATCHEDNEEDLE = options[:print].include? 'umatchedneedle'
 PRINT_NEEDLE = options[:print].include? 'needle'
 PRINT_SEPARATOR = options[:print].include? 'separator'
 
@@ -150,11 +152,14 @@ end
 BOLD = "\033[1m"
 NORMAL = "\033[22m"
 
-def print_found(needle, found)
-  if PRINT_NEEDLE
+def print_needle(needle, found)
+  if PRINT_NEEDLE or (PRINT_UNMATCHEDNEEDLE and found.nil?)
     print BOLD if $stdout.tty?
     puts needle
     print NORMAL if $stdout.tty?
+  end
+  if PRINT_HAY and (PRINT_UNMATCHEDNEEDLE and found.nil?)
+    puts "[UNMATCHED]"
   end
   puts found if PRINT_HAY
   puts if PRINT_SEPARATOR
@@ -171,5 +176,5 @@ info 'Comparing...'
 all_files(*NEEDLES_GLOB).each do |needle|
   info "  examining #{needle}"
   found = find_needle(needle, haystack)
-  print_found(needle, found) unless found.nil?
+  print_needle(needle, found)
 end
