@@ -4,13 +4,23 @@ A tool for finding duplicate files.
 
 # Usage
 
-Give it a directory to search in (called the haystack) and one or more files to search for (called the needles).
+Give it a directory to search in (called the haystack) and one or more files (or directories) to search for (called the needles).
 
     find-dups [options] haystack needle...
 
     -h, --help
     -v, --[no-]verbose
-    -p, --print         Print 'needle', 'hay' or 'separator'; should be a comma-separated list (no spaces!)
+    -p, --print         Print 'needle', 'hay', 'umatchedneedle' or 'separator'; should be a comma-separated list (no spaces!)
+
+# Examples
+
+## Find images in a large directory
+
+find-dups ~/photos img1.jpg img2.jpg
+
+## Compare two directories
+
+find-dups --reverse -p umatchedneedle dir1 dir2
 
 # Why?
 
